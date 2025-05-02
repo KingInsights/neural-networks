@@ -1,8 +1,35 @@
+
+
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
+
+
+
+#*********************************************************************
+import streamlit as st
+import requests
+
+st.title("🔧 Network Access Test (Streamlit Cloud)")
+
+# Test Google
+try:
+    r = requests.get("https://www.google.com", timeout=5)
+    st.success("✅ Google access OK")
+except Exception as e:
+    st.error(f"❌ Google access failed: {e}")
+
+# Test Yahoo Finance API
+try:
+    r = requests.get("https://query1.finance.yahoo.com", timeout=5)
+    st.success("✅ Yahoo Finance access OK")
+except Exception as e:
+    st.error(f"❌ Yahoo Finance access failed: {e}")
+#**************************************************************************
+
 
 # Step 1: List of USD Assets with their tickers
 tickers = [
