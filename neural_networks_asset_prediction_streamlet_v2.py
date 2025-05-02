@@ -1,12 +1,12 @@
 
 
 
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
 import requests
+import datetime
 
 # 📡 Network check (optional but helpful)
 try:
@@ -14,6 +14,44 @@ try:
     st.success("✅ Yahoo Finance is reachable")
 except Exception as e:
     st.error(f"❌ Cannot reach Yahoo Finance: {e}")
+
+# 🧠 Custom fetcher using requests instead of yfinance
+def fetch_yahoo_data(ticker):
+    base_url = "https://query1.finance.yahoo.com/v8/finance/chart/"
+    params = {
+        "interval": "1wk",
+        "range": "2y"
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
+    url = f"{base_url}{ticker}"
+    response = requests.get(url, headers=headers, params=params)
+
+    if response.status_code != 200:
+        raise Exception(f"Yahoo API error {response.status_code}: {response.text}")
+
+    data = response.json()
+
+    try:
+        result = data["chart"]["result"][0]
+        timestamps = result["timestamp"]
+        indicators = result["indicators"]["quote"][0]
+
+        df = pd.DataFrame({
+            "Date": [datetime.datetime.fromtimestamp(ts) for ts in timestamps],
+            "Open": indicators["open"],
+            "High": indicators["high"],
+            "Low": indicators["low"],
+            "Close": indicators["close"],
+            "Volume": indicators["volume"]
+        })
+
+        df = df.dropna().reset_index(drop=True)
+        return df
+    except Exception as e:
+        raise Exception(f"Data parsing error: {e}")
 
 # 🎯 Tickers
 tickers = [
@@ -32,30 +70,20 @@ if st.button("Download Asset"):
     for key in ["X", "y", "X_train", "y_train", "X_test", "y_test", "model", "history", "ticker_data"]:
         st.session_state[key] = None
 
-    st.write(f"📡 Attempting to download data for: `{ticker_symbol}`")
+    st.write(f"📡 Attempting to fetch data for: `{ticker_symbol}`")
     try:
-        df = yf.download(ticker_symbol, interval="1wk", period="2y", progress=False)
+        df = fetch_yahoo_data(ticker_symbol)
 
         if df.empty:
-            st.error("❌ Downloaded data is empty. This usually means one of the following:")
-            st.markdown("- Yahoo is **rate-limiting** Streamlit Cloud (happens often)\n"
-                        "- The **ticker is temporarily unavailable** via Yahoo\n"
-                        "- The request was **blocked or timed out**")
+            st.error("❌ Data is empty. Possible reasons:\n- No recent trading activity\n- Ticker not supported in Yahoo API")
         else:
-            df.reset_index(inplace=True)
-            if "Date" not in df.columns:
-                st.error("❌ Data returned, but no 'Date' column. The format from Yahoo is broken.")
-            else:
-                df["Date"] = pd.to_datetime(df["Date"])
-                df = df.sort_values("Date").reset_index(drop=True)
-                st.session_state.ticker_data = df
-                st.success(f"✅ Data for {ticker_symbol} downloaded successfully.")
-                st.write("🔍 Data Preview:")
-                st.dataframe(df.tail())
+            st.session_state.ticker_data = df
+            st.success(f"✅ Data for {ticker_symbol} downloaded successfully.")
+            st.write("🔍 Data Preview:")
+            st.dataframe(df.tail())
     except Exception as e:
-        st.error("❌ An error occurred while downloading data.")
+        st.error("❌ An error occurred while fetching data.")
         st.code(str(e))
-        st.info("This may be a `YFRateLimitError`, meaning Yahoo blocked the request temporarily. Try again in a few minutes.")
 
 # 📈 Plot the chart
 if "ticker_data" in st.session_state and st.session_state.ticker_data is not None:
