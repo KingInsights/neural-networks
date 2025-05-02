@@ -32,10 +32,28 @@ except Exception as e:
 
 
 # Step 1: List of USD Assets with their tickers
+# UK Indexes & ETFs
 tickers = [
-    "GC=F", "SI=F", "HG=F", "CL=F", "NG=F", "PL=F", "PA=F", 
-    "ZW=F", "ZS=F", "ZC=F", "KC=F", "SB=F", "CT=F", "LE=F", "HE=F"
+    "^FTSE",        # FTSE 100 Index
+    "^FTMC",        # FTSE 250 Index
+    "ISF.L",        # iShares Core FTSE 100 ETF
+    "VUKG.L",       # Vanguard FTSE UK All Share ETF
+    "HUKX.L",       # HSBC FTSE 100 ETF
+
+    # Large UK Stocks (LSE-listed, need .L suffix)
+    "HSBA.L",       # HSBC Holdings
+    "BP.L",         # BP
+    "GSK.L",        # GlaxoSmithKline
+    "VOD.L",        # Vodafone
+    "BATS.L",       # British American Tobacco
+    "RDSA.L",       # Shell
+    "ULVR.L",       # Unilever
+    "BARC.L",       # Barclays
+    "TSCO.L",       # Tesco
+    "LLOY.L",       # Lloyds Banking Group
+    "AZN.L",        # AstraZeneca
 ]
+
 
 # Step 2: Cached function moved to top level
 @st.cache_data
