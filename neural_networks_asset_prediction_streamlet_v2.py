@@ -8,66 +8,68 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import requests
 
-# 🔧 Check Internet Access
-st.title("🔧 Network Access Test (Streamlit Cloud)")
-
-try:
-    requests.get("https://www.google.com", timeout=5)
-    st.success("✅ Google access OK")
-except Exception as e:
-    st.error(f"❌ Google access failed: {e}")
-
+# 📡 Network check (optional but helpful)
 try:
     requests.get("https://query1.finance.yahoo.com", timeout=5)
-    st.success("✅ Yahoo Finance access OK")
+    st.success("✅ Yahoo Finance is reachable")
 except Exception as e:
-    st.error(f"❌ Yahoo Finance access failed: {e}")
+    st.error(f"❌ Cannot reach Yahoo Finance: {e}")
 
-# 🔢 Tickers
+# 🎯 Tickers
 tickers = [
     "^FTSE", "^FTMC", "ISF.L", "VUKG.L", "HUKX.L",
     "HSBA.L", "BP.L", "GSK.L", "VOD.L", "BATS.L",
     "RDSA.L", "ULVR.L", "BARC.L", "TSCO.L", "LLOY.L", "AZN.L"
 ]
 
+# 📘 UI
 st.title("Neural Network Training for Ticker Assets")
 ticker_symbol = st.selectbox("Select Ticker", tickers)
 
-# 🔘 Button to download
+# 🔘 Download Button
 if st.button("Download Asset"):
-    # Reset variables
+    # Reset session vars
     for key in ["X", "y", "X_train", "y_train", "X_test", "y_test", "model", "history", "ticker_data"]:
         st.session_state[key] = None
 
-    # Try download with full visibility
-    st.write(f"📡 Downloading {ticker_symbol} ...")
+    st.write(f"📡 Attempting to download data for: `{ticker_symbol}`")
     try:
         df = yf.download(ticker_symbol, interval="1wk", period="2y", progress=False)
-        st.write("🔍 Raw Data Head:", df.head())
 
         if df.empty:
-            st.error("❌ Data download returned empty. Ticker might be unsupported on Streamlit Cloud.")
+            st.error("❌ Downloaded data is empty. This usually means one of the following:")
+            st.markdown("- Yahoo is **rate-limiting** Streamlit Cloud (happens often)\n"
+                        "- The **ticker is temporarily unavailable** via Yahoo\n"
+                        "- The request was **blocked or timed out**")
         else:
             df.reset_index(inplace=True)
-            df["Date"] = pd.to_datetime(df["Date"])
-            df = df.sort_values("Date").reset_index(drop=True)
-            st.session_state.ticker_data = df
-            st.success(f"✅ Data for {ticker_symbol} downloaded.")
+            if "Date" not in df.columns:
+                st.error("❌ Data returned, but no 'Date' column. The format from Yahoo is broken.")
+            else:
+                df["Date"] = pd.to_datetime(df["Date"])
+                df = df.sort_values("Date").reset_index(drop=True)
+                st.session_state.ticker_data = df
+                st.success(f"✅ Data for {ticker_symbol} downloaded successfully.")
+                st.write("🔍 Data Preview:")
+                st.dataframe(df.tail())
     except Exception as e:
-        st.error(f"❌ yfinance error: {e}")
+        st.error("❌ An error occurred while downloading data.")
+        st.code(str(e))
+        st.info("This may be a `YFRateLimitError`, meaning Yahoo blocked the request temporarily. Try again in a few minutes.")
 
-# 📈 Plot if data exists
+# 📈 Plot the chart
 if "ticker_data" in st.session_state and st.session_state.ticker_data is not None:
     ticker_data = st.session_state.ticker_data
-    st.subheader(f"{ticker_symbol} Weekly Closing Prices")
+    st.subheader(f"{ticker_symbol} Weekly Closing Prices (2 Years)")
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(ticker_data["Date"], ticker_data["Close"], color="orange", label="Close Price")
-    ax.set_title(f"{ticker_symbol} Weekly Close - 2 Years")
     ax.set_xlabel("Date")
     ax.set_ylabel("Price (GBP)")
+    ax.set_title(f"{ticker_symbol} - Weekly Close")
     ax.grid(True)
     ax.legend()
     st.pyplot(fig)
+
 
 
     # Step 5: Create Button to generate sliding windows
