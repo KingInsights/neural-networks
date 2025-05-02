@@ -6,103 +6,67 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
-
-
-
-#*********************************************************************
-import streamlit as st
 import requests
 
+# 🔧 Check Internet Access
 st.title("🔧 Network Access Test (Streamlit Cloud)")
 
-# Test Google
 try:
-    r = requests.get("https://www.google.com", timeout=5)
+    requests.get("https://www.google.com", timeout=5)
     st.success("✅ Google access OK")
 except Exception as e:
     st.error(f"❌ Google access failed: {e}")
 
-# Test Yahoo Finance API
 try:
-    r = requests.get("https://query1.finance.yahoo.com", timeout=5)
+    requests.get("https://query1.finance.yahoo.com", timeout=5)
     st.success("✅ Yahoo Finance access OK")
 except Exception as e:
     st.error(f"❌ Yahoo Finance access failed: {e}")
-#**************************************************************************
 
-
-# Step 1: List of USD Assets with their tickers
-# UK Indexes & ETFs
+# 🔢 Tickers
 tickers = [
-    "^FTSE",        # FTSE 100 Index
-    "^FTMC",        # FTSE 250 Index
-    "ISF.L",        # iShares Core FTSE 100 ETF
-    "VUKG.L",       # Vanguard FTSE UK All Share ETF
-    "HUKX.L",       # HSBC FTSE 100 ETF
-
-    # Large UK Stocks (LSE-listed, need .L suffix)
-    "HSBA.L",       # HSBC Holdings
-    "BP.L",         # BP
-    "GSK.L",        # GlaxoSmithKline
-    "VOD.L",        # Vodafone
-    "BATS.L",       # British American Tobacco
-    "RDSA.L",       # Shell
-    "ULVR.L",       # Unilever
-    "BARC.L",       # Barclays
-    "TSCO.L",       # Tesco
-    "LLOY.L",       # Lloyds Banking Group
-    "AZN.L",        # AstraZeneca
+    "^FTSE", "^FTMC", "ISF.L", "VUKG.L", "HUKX.L",
+    "HSBA.L", "BP.L", "GSK.L", "VOD.L", "BATS.L",
+    "RDSA.L", "ULVR.L", "BARC.L", "TSCO.L", "LLOY.L", "AZN.L"
 ]
 
-
-# Step 2: Cached function moved to top level
-@st.cache_data
-def load_data(ticker_symbol, cache_buster=None):
-    try:
-        ticker_data = yf.download(ticker_symbol, interval="1wk", period="2y")
-        if ticker_data.empty:
-            raise ValueError("Downloaded data is empty.")
-        ticker_data.reset_index(inplace=True)
-        if not pd.api.types.is_datetime64_any_dtype(ticker_data["Date"]):
-            ticker_data["Date"] = pd.to_datetime(ticker_data["Date"])
-        return ticker_data.sort_values("Date").reset_index(drop=True)
-    except Exception as e:
-        st.error(f"❌ Failed to download data for {ticker_symbol}: {e}")
-        return pd.DataFrame()
-
-# Step 3: Streamlit UI for ticker selection
 st.title("Neural Network Training for Ticker Assets")
 ticker_symbol = st.selectbox("Select Ticker", tickers)
 
-# Step 4: Button to download the data
+# 🔘 Button to download
 if st.button("Download Asset"):
-    # 🔥 RESET ALL RELEVANT VARIABLES
-    st.session_state.X = None
-    st.session_state.y = None
-    st.session_state.X_train = None
-    st.session_state.y_train = None
-    st.session_state.X_test = None
-    st.session_state.y_test = None
-    st.session_state.model = None
-    st.session_state.history = None
+    # Reset variables
+    for key in ["X", "y", "X_train", "y_train", "X_test", "y_test", "model", "history", "ticker_data"]:
+        st.session_state[key] = None
 
-    # Download and save ticker data
-    st.session_state.ticker_data = load_data(ticker_symbol, cache_buster=np.random.rand())
-    if not st.session_state.ticker_data.empty:
-        st.success(f"✅ Data for {ticker_symbol} downloaded. All previous data has been reset.")
+    # Try download with full visibility
+    st.write(f"📡 Downloading {ticker_symbol} ...")
+    try:
+        df = yf.download(ticker_symbol, interval="1wk", period="2y", progress=False)
+        st.write("🔍 Raw Data Head:", df.head())
 
-# Step 5: Show chart if data exists
-if "ticker_data" in st.session_state and not st.session_state.ticker_data.empty:
+        if df.empty:
+            st.error("❌ Data download returned empty. Ticker might be unsupported on Streamlit Cloud.")
+        else:
+            df.reset_index(inplace=True)
+            df["Date"] = pd.to_datetime(df["Date"])
+            df = df.sort_values("Date").reset_index(drop=True)
+            st.session_state.ticker_data = df
+            st.success(f"✅ Data for {ticker_symbol} downloaded.")
+    except Exception as e:
+        st.error(f"❌ yfinance error: {e}")
+
+# 📈 Plot if data exists
+if "ticker_data" in st.session_state and st.session_state.ticker_data is not None:
     ticker_data = st.session_state.ticker_data
-
-    st.subheader(f"Plot of {ticker_symbol} Closing Prices (Last 2 Years)")
+    st.subheader(f"{ticker_symbol} Weekly Closing Prices")
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(ticker_data["Date"], ticker_data["Close"], label=f"{ticker_symbol} Price", color="orange")
-    ax.set_title(f"{ticker_symbol} Weekly Closing Prices (Last 2 Years)")
+    ax.plot(ticker_data["Date"], ticker_data["Close"], color="orange", label="Close Price")
+    ax.set_title(f"{ticker_symbol} Weekly Close - 2 Years")
     ax.set_xlabel("Date")
-    ax.set_ylabel("Price (USD)")
+    ax.set_ylabel("Price (GBP)")
     ax.grid(True)
-    plt.tight_layout()
+    ax.legend()
     st.pyplot(fig)
 
 
